@@ -11,6 +11,12 @@ lines = json.loads(file)
 
 # defining data variables
 msgcount = 0
+groupcalls = 0
+memremoved = 0
+memadded = 0
+photoedit = 0
+groupnames = list()
+pinned = list()
 worddict = {}
 meta = {
     "Sender":{},
@@ -25,20 +31,37 @@ msgdict = lines["messages"]
 for i in msgdict:
     msgcount += 1
 
+    if i.get("type") == "service":
+        action = i.get("action")
+        if action == "edit_group_title":
+            groupnames.append(i.get("title"))
+            continue
+        elif action == "pin_message":
+            id = i.get("message_id")
+            tempdict = next(item for item in msgdict if item["id"] == id)
+            pinned.append(tempdict.get("text"))
+            continue
+        elif action == "group_call":
+            groupcalls += 1
+            continue
+        elif action == "edit_group_photo" or action == "delete_group_photo":
+            photoedit += 1
+            continue
+        elif action == "remove_members":
+            memremoved += 1
+        elif action == "invite_members":
+            memadded += 1
+        elif action == "create_group" or action == "invite_to_group_call":
+            continue
+        else: print(action)
+
     # sender counts
+
     name = i.get("from")
     if name in meta["Sender"]:
         meta["Sender"][name] += 1
     else: meta["Sender"][name] = 1
 
-    # date counts, by year
-    datestring = i.get("date")
-    date = datetime.datetime.fromisoformat(datestring)
-    if date.year in meta["Date"]:
-        meta["Date"][date.year] += 1
-    else: meta["Date"][date.year] = 1
-
-    # word counts (lowercase)
     msg = i.get("text")
     msg = str(msg).split()
     for word in msg:
@@ -47,15 +70,46 @@ for i in msgdict:
         else:
             worddict[word.lower()] = 1
 
-    for i in stopwords:
-        if i in worddict.keys(): del worddict[i]
+    for g in stopwords:
+        if g in worddict.keys(): del worddict[g]
+
+    # date counts, by year
+    datestring = i.get("date")
+    date = datetime.datetime.fromisoformat(datestring)
+    if date.year in meta["Date"]:
+        meta["Date"][date.year] += 1
+    else: meta["Date"][date.year] = 1
+
+    # word counts across all messages, regardless of sender
+    # msg = i.get("text")
+    # msg = str(msg).split()
+    # for word in msg:
+    #     if word.lower() in worddict:
+    #         worddict[word.lower()] += 1
+    #     else:
+    #         worddict[word.lower()] = 1
+    #
+    # for i in stopwords:
+    #     if i in worddict.keys(): del worddict[i]
 
 
 
 # print results
 print("Total Messages: ", msgcount)
+if len(groupnames) > 0:
+    print("Total Group Title Changes: ", len(groupnames))
+    print("Previous Names: ", groupnames)
+if groupcalls > 0:
+    print("Total Group Calls: ", groupcalls)
+if len(pinned) > 0:
+    print("Total Pinned Messages: ", len(pinned))
+    print("Pinned Messages: ", pinned)
+if photoedit > 0: print("Total Group Photo Edits: ", photoedit)
+if memadded > 0: print("Members Added: ", memadded)
+if memremoved > 0: print("Members Removed: ", memremoved)
+
 print(meta)
 wordlist = sorted(worddict.items(), key = lambda x: x[1], reverse=True)
-print(wordlist)
+# print(wordlist)
 
 # further idea: list of words per person
