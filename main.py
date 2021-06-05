@@ -4,6 +4,7 @@ import datetime
 
 # open and read telegram history
 inp = input("Input file name:")
+nocommonwords = input()
 data = open(inp, "r", encoding="utf8")
 file = data.read()
 data.close()
@@ -13,6 +14,8 @@ meta = {
     "Sender":{},
     "Date":{}
 }
+
+worddict = {}
 
 msgcount = 0
 print(type(lines))
@@ -36,8 +39,21 @@ for i in msgdict:
         meta["Date"][date.year] += 1
     else: meta["Date"][date.year] = 1
 
+    # word counts (lowercase)
+    msg = i.get("text")
+    msg = str(msg).split()
+    for word in msg:
+        if word.lower() in worddict:
+            worddict[word.lower()] += 1
+        else:
+            worddict[word.lower()] = 1
 
+
+
+# print results
 print("Total Messages: ", msgcount)
 print(meta)
+wordlist = sorted(worddict.items(), key = lambda x: x[1], reverse=True)
+print(wordlist)
 
-# print information
+# further idea: list of words per person
