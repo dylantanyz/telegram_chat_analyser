@@ -10,17 +10,14 @@ data.close()
 lines = json.loads(file)
 
 # defining data variables
-msgcount = 0
-groupcalls = 0
-memremoved = 0
-memadded = 0
-photoedit = 0
+calls = memremoved = memadded = photoedit = msgcount = int()
 groupnames = list()
 pinned = list()
-worddict = {}
+worddict = dict()
 meta = {
     "Sender":{},
-    "Date":{}
+    "Date":{},
+    "Time":{}
 }
 
 # retrieved from http://xpo6.com/list-of-english-stop-words/
@@ -41,22 +38,22 @@ for i in msgdict:
             tempdict = next(item for item in msgdict if item["id"] == id)
             pinned.append(tempdict.get("text"))
             continue
-        elif action == "group_call":
-            groupcalls += 1
+        elif action == "group_call" or action == "phone_call":
+            calls += 1
             continue
         elif action == "edit_group_photo" or action == "delete_group_photo":
             photoedit += 1
             continue
         elif action == "remove_members":
             memremoved += 1
+            continue
         elif action == "invite_members":
             memadded += 1
-        elif action == "create_group" or action == "invite_to_group_call":
             continue
+        elif action == "create_group" or action == "invite_to_group_call": continue
         else: print(action)
 
     # sender counts
-
     name = i.get("from")
     if name in meta["Sender"]:
         meta["Sender"][name] += 1
@@ -76,40 +73,50 @@ for i in msgdict:
     # date counts, by year
     datestring = i.get("date")
     date = datetime.datetime.fromisoformat(datestring)
+    time = datetime.datetime.time(date)
+
+    if time.hour in meta["Time"]:
+        meta["Time"][time.hour] += 1
+    else: meta["Time"][time.hour] = 1
+
     if date.year in meta["Date"]:
         meta["Date"][date.year] += 1
     else: meta["Date"][date.year] = 1
 
     # word counts across all messages, regardless of sender
-    # msg = i.get("text")
-    # msg = str(msg).split()
-    # for word in msg:
-    #     if word.lower() in worddict:
-    #         worddict[word.lower()] += 1
-    #     else:
-    #         worddict[word.lower()] = 1
-    #
-    # for i in stopwords:
-    #     if i in worddict.keys(): del worddict[i]
+    msg = i.get("text")
+    msg = str(msg).split()
+    for word in msg:
+        if word.lower() in worddict:
+            worddict[word.lower()] += 1
+        else:
+            worddict[word.lower()] = 1
 
+    for i in stopwords:
+        if i in worddict.keys(): del worddict[i]
 
+wordlist = sorted(worddict.items(), key = lambda x: x[1], reverse=True)
 
 # print results
 print("Total Messages: ", msgcount)
 if len(groupnames) > 0:
     print("Total Group Title Changes: ", len(groupnames))
     print("Previous Names: ", groupnames)
-if groupcalls > 0:
-    print("Total Group Calls: ", groupcalls)
+if calls > 0:
+    print("Total Calls: ", calls)
 if len(pinned) > 0:
     print("Total Pinned Messages: ", len(pinned))
-    print("Pinned Messages: ", pinned)
+    # print("Pinned Messages: ", pinned)
 if photoedit > 0: print("Total Group Photo Edits: ", photoedit)
 if memadded > 0: print("Members Added: ", memadded)
 if memremoved > 0: print("Members Removed: ", memremoved)
+print("Messages Sent by Person: ", sorted(meta["Sender"].items(), key = lambda x: x[1], reverse=True))
+print("Messages Sent by Year: ", meta.get("Date"))
+print("Messages Sent by Hour: ", sorted(meta["Time"].items(), key = lambda x: x[1], reverse=True))
 
-print(meta)
-wordlist = sorted(worddict.items(), key = lambda x: x[1], reverse=True)
-# print(wordlist)
+# export data
+with open('exports/pinned_messages.json', 'w', encoding='utf-8') as f:
+    json.dump(pinned, f, ensure_ascii=False, indent=4)
+with open('exports/total_word_frequency.json', 'w', encoding='utf-8') as f:
+    json.dump(wordlist, f, ensure_ascii=False, indent=4)
 
-# further idea: list of words per person
